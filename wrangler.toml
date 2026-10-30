@@ -6,9 +6,9 @@ compatibility_date = "2024-04-01"
 directory = "./public"
 binding = "ASSETS"
 
-# Cloudflare D1 綁定設定
-# 請至 Cloudflare 建立 D1 (名稱: complaint-db)，並在後台 Bindings 或此處填寫 database_id
-[[d1_databases]]
-binding = "DB"
-database_name = "complaint-db"
-database_id = "complaint-db"
+# 注意：線上部署建議直接在 Cloudflare 控制台的「Settings > Bindings」綁定 D1 (變數名稱: DB)
+# 若要在此處寫入，database_id 必須是真實的 UUID (例如: 12345678-abcd-1234-ef01-123456789abc)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "complaint-db"
+# database_id = "your-actual-d1-uuid-here"

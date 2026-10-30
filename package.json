@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --d1=DB=complaint-db",
     "deploy": "wrangler deploy",
     "db:init:local": "wrangler d1 execute complaint-db --local --file=./schema.sql",
     "db:init:remote": "wrangler d1 execute complaint-db --remote --file=./schema.sql"
