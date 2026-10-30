@@ -1,6 +1,6 @@
 /**
  * Cloudflare Worker 入口
- * 結合靜態資源 (Assets) 與 /api/complaints 後端端點
+ * 結合靜態資源 (Assets) 與 /api/complaints 後端端點 (支援單筆/批次匯入與完整匯出)
  */
 
 const corsHeaders = {
@@ -28,38 +28,27 @@ export default {
         );
       }
 
-      // GET: 取得客訴清單（依 ID 倒序，最多取最新 100 筆）
+      // GET: 取得客訴清單（可選全部或最新 100 筆）
       if (request.method === "GET") {
         try {
-          const { results } = await env.DB.prepare(
-            "SELECT * FROM customer_complaints ORDER BY id DESC LIMIT 100"
-          ).all();
+          const isAll = url.searchParams.get("all") === "true";
+          const query = isAll
+            ? "SELECT * FROM customer_complaints ORDER BY id DESC"
+            : "SELECT * FROM customer_complaints ORDER BY id DESC LIMIT 100";
+
+          const { results } = await env.DB.prepare(query).all();
           return new Response(JSON.stringify(results || []), { headers: corsHeaders });
         } catch (err) {
           return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
         }
       }
 
-      // POST: 新增一筆客訴紀錄
+      // POST: 新增一筆或批次匯入客訴紀錄
       if (request.method === "POST") {
         try {
-          const data = await request.json();
+          const body = await request.json();
 
-          if (!data.form_no || !data.customer_name || !data.model_name || !data.anomaly_content) {
-            return new Response(
-              JSON.stringify({ error: "單號、客戶別、機種、異常內容為必填欄位" }),
-              { status: 400, headers: corsHeaders }
-            );
-          }
-
-          let defectRate = null;
-          const inspQty = parseInt(data.inspection_qty, 10) || 0;
-          const defQty = parseInt(data.defect_qty, 10) || 0;
-          if (inspQty > 0) {
-            defectRate = parseFloat(((defQty / inspQty) * 100).toFixed(2));
-          }
-
-          const query = `
+          const insertSql = `
             INSERT INTO customer_complaints (
               no, complaint_date, form_no, customer_name, product_category,
               model_name, shipment_date, complaint_type, anomaly_content,
@@ -75,27 +64,97 @@ export default {
             )
           `;
 
-          const result = await env.DB.prepare(query)
+          // 判斷是否為批次匯入 (陣列格式)
+          if (Array.isArray(body)) {
+            if (body.length === 0) {
+              return new Response(JSON.stringify({ error: "匯入資料不可為空" }), { status: 400, headers: corsHeaders });
+            }
+
+            const statements = [];
+            for (const item of body) {
+              if (!item.form_no || !item.customer_name || !item.model_name || !item.anomaly_content) {
+                return new Response(
+                  JSON.stringify({ error: `客訴單號「${item.form_no || '未知'}」缺少必填欄位 (單號、客戶、機種、異常內容)` }),
+                  { status: 400, headers: corsHeaders }
+                );
+              }
+
+              let defectRate = null;
+              const inspQty = parseInt(item.inspection_qty, 10) || 0;
+              const defQty = parseInt(item.defect_qty, 10) || 0;
+              if (inspQty > 0) {
+                defectRate = parseFloat(((defQty / inspQty) * 100).toFixed(2));
+              }
+
+              statements.push(
+                env.DB.prepare(insertSql).bind(
+                  item.no || null,
+                  item.complaint_date || null,
+                  item.form_no,
+                  item.customer_name,
+                  item.product_category || null,
+                  item.model_name,
+                  item.shipment_date || null,
+                  item.complaint_type || null,
+                  item.anomaly_content,
+                  inspQty,
+                  defQty,
+                  defectRate,
+                  item.responsible_dept || null,
+                  item.root_cause || null,
+                  item.countermeasure || null,
+                  item.capa || null,
+                  item.tracking_confirmation || null,
+                  item.is_closed || "未結案",
+                  item.progress_notes || null
+                )
+              );
+            }
+
+            // D1 批次執行
+            await env.DB.batch(statements);
+            return new Response(
+              JSON.stringify({ success: true, count: statements.length, message: `成功匯入 ${statements.length} 筆資料！` }),
+              { headers: corsHeaders }
+            );
+          }
+
+          // 單筆新增
+          if (!body.form_no || !body.customer_name || !body.model_name || !body.anomaly_content) {
+            return new Response(
+              JSON.stringify({ error: "單號、客戶別、機種、異常內容為必填欄位" }),
+              { status: 400, headers: corsHeaders }
+            );
+          }
+
+          let defectRate = null;
+          const inspQty = parseInt(body.inspection_qty, 10) || 0;
+          const defQty = parseInt(body.defect_qty, 10) || 0;
+          if (inspQty > 0) {
+            defectRate = parseFloat(((defQty / inspQty) * 100).toFixed(2));
+          }
+
+          const result = await env.DB.prepare(insertSql)
             .bind(
-              data.no || null,
-              data.complaint_date || null,
-              data.form_no,
-              data.customer_name,
-              data.product_category || null,
-              data.model_name,
-              data.shipment_date || null,
-              data.complaint_type || null,
-              data.anomaly_content,
+              body.no || null,
+              body.complaint_date || null,
+              body.form_no,
+              body.customer_name,
+              body.product_category || null,
+              body.model_name,
+              body.shipment_date || null,
+              body.complaint_type || null,
+              body.anomaly_content,
               inspQty,
               defQty,
               defectRate,
-              data.responsible_dept || null,
-              data.root_cause || null,
-              data.countermeasure || null,
-              data.capa || null,
-              data.tracking_confirmation || null,
-              data.is_closed || '未結案',
-              data.progress_notes || null
+              body.responsible_dept || null,
+              body.root_cause || null,
+              body.countermeasure || null,
+              body.capa || null,
+              body.tracking_confirmation || null,
+              body.is_closed || "未結案",
+              body.progress_notes || null
             )
             .run();
 
@@ -143,7 +202,7 @@ export default {
       }
     }
 
-    // 靜態資源 (HTML / CSS / JS) 由 Cloudflare Assets 自動處理
+    // 靜態資源由 Assets 處理
     if (env.ASSETS) {
       return env.ASSETS.fetch(request);
     }

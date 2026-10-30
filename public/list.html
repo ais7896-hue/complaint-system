@@ -7,16 +7,25 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px 16px; color: #333; }
-    .container { max-width: 1300px; margin: 0 auto; }
+    .container { max-width: 1400px; margin: 0 auto; }
     .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
     .nav-title { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
-    .btn-primary { background: #2563eb; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; }
+    .btn-primary { background: #2563eb; color: #fff; }
     .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
+    .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+    .btn-success { background: #10b981; color: #fff; }
+    .btn-success:hover { background: #059669; }
+
     .card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .search-input { flex: 1; min-width: 260px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; outline: none; }
+    .filter-bar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-left { display: flex; gap: 12px; flex: 1; min-width: 300px; }
+    .search-input { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; outline: none; }
     .search-input:focus { border-color: #2563eb; }
     .status-filter { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; outline: none; background: #fff; cursor: pointer; }
+
     .table-responsive { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; margin-top: 8px; }
     th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
@@ -27,25 +36,48 @@
     .badge-open { background: #fee2e2; color: #b91c1c; }
     .badge-processing { background: #fef3c7; color: #b45309; }
     .status-select { padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; cursor: pointer; background: #fff; }
+
+    /* Modal 對話框 */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+    .modal { background: #fff; border-radius: 8px; width: 100%; max-width: 620px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; animation: popIn 0.2s ease-out; }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { margin: 0; font-size: 16px; color: #0f172a; }
+    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; line-height: 1; }
+    .close-btn:hover { color: #0f172a; }
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+    .drop-zone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 28px; text-align: center; background: #f8fafc; cursor: pointer; transition: border-color 0.2s; }
+    .drop-zone:hover { border-color: #2563eb; background: #f1f5f9; }
+    .preview-box { background: #f1f5f9; border-radius: 6px; padding: 12px; font-size: 13px; max-height: 180px; overflow-y: auto; color: #334155; }
   </style>
 </head>
 <body>
 
 <div class="container">
   <div class="nav-bar">
-    <h1 class="nav-title">客訴案件清單 (最新 100 筆)</h1>
-    <a href="/index.html" class="btn-primary">➕ 登記新客訴案件</a>
+    <h1 class="nav-title">客訴案件清單</h1>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="exportToCSV()">📥 匯出 CSV (Excel)</button>
+      <button class="btn btn-secondary" onclick="openImportModal()">📤 批次匯入 CSV</button>
+      <a href="/index.html" class="btn btn-primary">➕ 登記新客訴案件</a>
+    </div>
   </div>
 
   <div class="card">
     <div class="filter-bar">
-      <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋單號、客戶別、機種名稱或異常內容..." oninput="filterTable()">
-      <select id="statusFilter" class="status-filter" onchange="filterTable()">
-        <option value="all">所有狀態</option>
-        <option value="未結案">未結案</option>
-        <option value="處理中">處理中</option>
-        <option value="已結案">已結案</option>
-      </select>
+      <div class="filter-left">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋單號、客戶別、機種名稱、責任單位或異常內容..." oninput="filterTable()">
+        <select id="statusFilter" class="status-filter" onchange="filterTable()">
+          <option value="all">所有狀態</option>
+          <option value="未結案">未結案</option>
+          <option value="處理中">處理中</option>
+          <option value="已結案">已結案</option>
+        </select>
+      </div>
+      <div style="font-size: 13px; color: #64748b; align-self: center;">
+        共 <span id="recordCount" style="font-weight: 700; color: #0f172a;">0</span> 筆案件
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -57,6 +89,7 @@
             <th>狀態</th>
             <th>客戶</th>
             <th>機種</th>
+            <th>類別</th>
             <th>類型</th>
             <th>異常內容</th>
             <th>檢驗數</th>
@@ -69,24 +102,59 @@
           </tr>
         </thead>
         <tbody id="complaintsTableBody">
-          <tr><td colspan="14" style="text-align:center; padding: 30px;">載入中...</td></tr>
+          <tr><td colspan="15" style="text-align:center; padding: 30px;">載入中...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </div>
 
+<!-- 批次匯入 Modal -->
+<div id="importModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>批次匯入客訴案件 (CSV 格式)</h3>
+      <button class="close-btn" onclick="closeImportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:#64748b;">請使用標準 CSV 格式進行匯入</span>
+        <button class="btn btn-secondary" style="font-size:12px; padding:4px 10px;" onclick="downloadTemplate()">📄 下載空白範本</button>
+      </div>
+
+      <div class="drop-zone" onclick="document.getElementById('csvFileInput').click()">
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleFileSelect(event)">
+        <div style="font-size: 28px; margin-bottom: 6px;">📂</div>
+        <div style="font-weight: 600; color: #1e293b;">點擊此處選擇 CSV 檔案</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">支援 UTF-8 編碼之 .csv 檔</div>
+      </div>
+
+      <div id="previewArea" style="display:none;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:6px;">檔案解析結果：</div>
+        <div id="previewContent" class="preview-box"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeImportModal()">取消</button>
+      <button id="confirmImportBtn" class="btn btn-success" disabled onclick="submitBatchImport()">確認批次匯入</button>
+    </div>
+  </div>
+</div>
+
 <script>
   let rawData = [];
+  let parsedImportData = [];
 
+  // 1. 取得客訴清單
   async function loadComplaints() {
     const tbody = document.getElementById('complaintsTableBody');
     try {
-      const res = await fetch('/api/complaints');
+      const res = await fetch('/api/complaints?all=true');
       const data = await res.json();
 
       if (!Array.isArray(data) || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding: 30px; color:#64748b;">目前無客訴案件資料</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding: 30px; color:#64748b;">目前無客訴案件資料</td></tr>';
+        document.getElementById('recordCount').textContent = '0';
         return;
       }
 
@@ -94,10 +162,11 @@
       filterTable();
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; color:#ef4444; padding: 20px;">載入失敗: ${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; color:#ef4444; padding: 20px;">載入失敗: ${err.message}</td></tr>`;
     }
   }
 
+  // 2. 表格篩選渲染
   function filterTable() {
     const q = document.getElementById('searchInput').value.toLowerCase().trim();
     const status = document.getElementById('statusFilter').value;
@@ -114,8 +183,10 @@
       return matchStatus && matchQuery;
     });
 
+    document.getElementById('recordCount').textContent = filtered.length;
+
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding: 30px; color:#64748b;">沒有符合條件的案件</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding: 30px; color:#64748b;">沒有符合條件的案件</td></tr>';
       return;
     }
 
@@ -126,19 +197,20 @@
 
       return `
         <tr>
-          <td><strong>${item.form_no || '-'}</strong></td>
+          <td><strong>${escapeHtml(item.form_no || '-')}</strong></td>
           <td>${item.complaint_date || '-'}</td>
           <td><span class="badge ${badgeClass}">${item.is_closed || '未結案'}</span></td>
-          <td>${item.customer_name || '-'}</td>
-          <td>${item.model_name || '-'}</td>
-          <td>${item.complaint_type || '-'}</td>
-          <td style="max-width:240px; white-space:normal; line-height: 1.4;">${item.anomaly_content || '-'}</td>
+          <td>${escapeHtml(item.customer_name || '-')}</td>
+          <td>${escapeHtml(item.model_name || '-')}</td>
+          <td>${escapeHtml(item.product_category || '-')}</td>
+          <td>${escapeHtml(item.complaint_type || '-')}</td>
+          <td style="max-width:240px; white-space:normal; line-height:1.4;">${escapeHtml(item.anomaly_content || '-')}</td>
           <td>${item.inspection_qty ?? 0}</td>
           <td>${item.defect_qty ?? 0}</td>
           <td><strong>${item.defect_rate !== null ? item.defect_rate + ' %' : '-'}</strong></td>
-          <td>${item.responsible_dept || '-'}</td>
-          <td>${item.capa || '-'}</td>
-          <td style="max-width:160px; white-space:normal;">${item.progress_notes || '-'}</td>
+          <td>${escapeHtml(item.responsible_dept || '-')}</td>
+          <td>${escapeHtml(item.capa || '-')}</td>
+          <td style="max-width:160px; white-space:normal;">${escapeHtml(item.progress_notes || '-')}</td>
           <td>
             <select class="status-select" onchange="updateStatus(${item.id}, this.value)">
               <option value="未結案" ${item.is_closed === '未結案' ? 'selected' : ''}>未結案</option>
@@ -151,6 +223,7 @@
     }).join('');
   }
 
+  // 3. 更新狀態
   async function updateStatus(id, newStatus) {
     try {
       const res = await fetch('/api/complaints', {
@@ -161,7 +234,6 @@
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || '更新失敗');
 
-      // 更新本機快取資料
       const target = rawData.find(item => item.id === id);
       if (target) target.is_closed = newStatus;
       filterTable();
@@ -170,6 +242,236 @@
     }
   }
 
+  // 4. 匯出 CSV (含 UTF-8 BOM 避免 Excel 亂碼)
+  function exportToCSV() {
+    if (rawData.length === 0) {
+      alert('目前沒有任何客訴資料可供匯出！');
+      return;
+    }
+
+    const headers = [
+      '管制編號', '立案日期', '客訴單號', '結案狀態', '客戶別', '產品類別',
+      '機種名稱', '出貨日', '客訴類型', '檢驗數', '不良數', '不良率(%)',
+      '責任單位', 'CAPA單號', '異常內容詳細描述', '原因分析', '改善對策', '追蹤確認', '備註進度'
+    ];
+
+    const rows = rawData.map(item => [
+      item.no || '',
+      item.complaint_date || '',
+      item.form_no || '',
+      item.is_closed || '未結案',
+      item.customer_name || '',
+      item.product_category || '',
+      item.model_name || '',
+      item.shipment_date || '',
+      item.complaint_type || '',
+      item.inspection_qty ?? 0,
+      item.defect_qty ?? 0,
+      item.defect_rate !== null ? item.defect_rate + '%' : '0.00%',
+      item.responsible_dept || '',
+      item.capa || '',
+      item.anomaly_content || '',
+      item.root_cause || '',
+      item.countermeasure || '',
+      item.tracking_confirmation || '',
+      item.progress_notes || ''
+    ]);
+
+    const csvContent = [
+      headers.map(escapeCsvField).join(','),
+      ...rows.map(row => row.map(escapeCsvField).join(','))
+    ].join('\r\n');
+
+    // 加入 UTF-8 BOM: \uFEFF
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `客訴紀錄清單_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 5. 下載空白範本
+  function downloadTemplate() {
+    const templateHeaders = [
+      '管制編號', '立案日期', '客訴單號', '客戶別', '產品類別',
+      '機種名稱', '出貨日', '客訴類型', '檢驗數', '不良數',
+      '責任單位', '結案狀態', 'CAPA單號', '異常內容詳細描述', '原因分析', '改善對策', '追蹤確認', '備註進度'
+    ];
+    const exampleRow = [
+      'NO-2026-001', '2026-10-30', 'CR-2610-01', '宏碁', '風速儀',
+      'Model-X300', '2026-10-25', '外觀瑕疵', '100', '2',
+      '產線', '未結案', 'CAPA-2026001', '外殼刮傷嚴重', '治具磨損', '更換治具橡膠墊', '首件檢查合格', '等待客戶驗收'
+    ];
+
+    const csvContent = [
+      templateHeaders.map(escapeCsvField).join(','),
+      exampleRow.map(escapeCsvField).join(',')
+    ].join('\r\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '客訴資料匯入範本.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 6. 匯入 Modal 控制
+  function openImportModal() {
+    document.getElementById('importModal').style.display = 'flex';
+    document.getElementById('csvFileInput').value = '';
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('confirmImportBtn').disabled = true;
+    parsedImportData = [];
+  }
+
+  function closeImportModal() {
+    document.getElementById('importModal').style.display = 'none';
+  }
+
+  // 7. 解析上傳的 CSV 檔
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const text = evt.target.result;
+      parseCSV(text);
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function parseCSV(text) {
+    const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) {
+      alert('CSV 內容為空或無有效資料列！');
+      return;
+    }
+
+    const headers = parseCSVLine(lines[0]);
+    parsedImportData = [];
+    const previewList = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length === 0 || cols.every(c => c.trim() === '')) continue;
+
+      const obj = {
+        no: cols[0] || null,
+        complaint_date: cols[1] || null,
+        form_no: cols[2]?.trim() || '',
+        customer_name: cols[3]?.trim() || '',
+        product_category: cols[4] || null,
+        model_name: cols[5]?.trim() || '',
+        shipment_date: cols[6] || null,
+        complaint_type: cols[7] || null,
+        inspection_qty: parseInt(cols[8], 10) || 0,
+        defect_qty: parseInt(cols[9], 10) || 0,
+        responsible_dept: cols[10] || null,
+        is_closed: cols[11]?.trim() || '未結案',
+        capa: cols[12] || null,
+        anomaly_content: cols[13]?.trim() || '',
+        root_cause: cols[14] || null,
+        countermeasure: cols[15] || null,
+        tracking_confirmation: cols[16] || null,
+        progress_notes: cols[17] || null
+      };
+
+      if (!obj.form_no || !obj.customer_name || !obj.model_name || !obj.anomaly_content) {
+        previewList.push(`⚠️ 第 ${i+1} 列缺少必填項目（單號/客戶/機種/異常內容），請檢查。`);
+      } else {
+        parsedImportData.push(obj);
+        previewList.push(`✅ [${obj.form_no}] ${obj.customer_name} - ${obj.model_name} (${obj.anomaly_content.substring(0, 20)}...)`);
+      }
+    }
+
+    document.getElementById('previewArea').style.display = 'block';
+    document.getElementById('previewContent').innerHTML = `
+      <div><strong>成功解析 ${parsedImportData.length} 筆有效資料：</strong></div>
+      <ul style="margin:6px 0 0 16px; padding:0;">
+        ${previewList.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+      </ul>
+    `;
+
+    document.getElementById('confirmImportBtn').disabled = parsedImportData.length === 0;
+  }
+
+  // 8. 送出批次匯入
+  async function submitBatchImport() {
+    if (parsedImportData.length === 0) return;
+
+    const btn = document.getElementById('confirmImportBtn');
+    btn.disabled = true;
+    btn.textContent = '匯入中...';
+
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsedImportData)
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || '匯入失敗');
+
+      alert(result.message || '批次匯入成功！');
+      closeImportModal();
+      loadComplaints();
+    } catch (err) {
+      alert('匯入失敗: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '確認批次匯入';
+    }
+  }
+
+  // CSV 輔助函數
+  function escapeCsvField(val) {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  }
+
+  function parseCSVLine(line) {
+    const result = [];
+    let insideQuote = false;
+    let entry = '';
+
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (insideQuote && line[i + 1] === '"') {
+          entry += '"';
+          i++;
+        } else {
+          insideQuote = !insideQuote;
+        }
+      } else if (c === ',' && !insideQuote) {
+        result.push(entry);
+        entry = '';
+      } else {
+        entry += c;
+      }
+    }
+    result.push(entry);
+    return result;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // 初次載入
   loadComplaints();
 </script>
 
