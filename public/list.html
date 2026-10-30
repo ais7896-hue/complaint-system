@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客訴案件清單 - 品質異常管理</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px 16px; color: #333; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .nav-title { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+    .btn-primary { background: #2563eb; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-input { flex: 1; min-width: 260px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; outline: none; }
+    .search-input:focus { border-color: #2563eb; }
+    .status-filter { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; outline: none; background: #fff; cursor: pointer; }
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; margin-top: 8px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    th { background: #f8fafc; color: #475569; font-weight: 600; }
+    tr:hover { background: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+    .badge-closed { background: #dcfce7; color: #15803d; }
+    .badge-open { background: #fee2e2; color: #b91c1c; }
+    .badge-processing { background: #fef3c7; color: #b45309; }
+    .status-select { padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; cursor: pointer; background: #fff; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav-bar">
+    <h1 class="nav-title">客訴案件清單 (最新 100 筆)</h1>
+    <a href="/index.html" class="btn-primary">➕ 登記新客訴案件</a>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋單號、客戶別、機種名稱或異常內容..." oninput="filterTable()">
+      <select id="statusFilter" class="status-filter" onchange="filterTable()">
+        <option value="all">所有狀態</option>
+        <option value="未結案">未結案</option>
+        <option value="處理中">處理中</option>
+        <option value="已結案">已結案</option>
+      </select>
+    </div>
+
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>單號</th>
+            <th>立案日期</th>
+            <th>狀態</th>
+            <th>客戶</th>
+            <th>機種</th>
+            <th>類型</th>
+            <th>異常內容</th>
+            <th>檢驗數</th>
+            <th>不良數</th>
+            <th>不良率</th>
+            <th>責任單位</th>
+            <th>CAPA</th>
+            <th>備註進度</th>
+            <th>變更狀態</th>
+          </tr>
+        </thead>
+        <tbody id="complaintsTableBody">
+          <tr><td colspan="14" style="text-align:center; padding: 30px;">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  let rawData = [];
+
+  async function loadComplaints() {
+    const tbody = document.getElementById('complaintsTableBody');
+    try {
+      const res = await fetch('/api/complaints');
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding: 30px; color:#64748b;">目前無客訴案件資料</td></tr>';
+        return;
+      }
+
+      rawData = data;
+      filterTable();
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; color:#ef4444; padding: 20px;">載入失敗: ${err.message}</td></tr>`;
+    }
+  }
+
+  function filterTable() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const status = document.getElementById('statusFilter').value;
+    const tbody = document.getElementById('complaintsTableBody');
+
+    const filtered = rawData.filter(item => {
+      const matchStatus = status === 'all' || item.is_closed === status;
+      const matchQuery = !q ||
+        (item.form_no && item.form_no.toLowerCase().includes(q)) ||
+        (item.customer_name && item.customer_name.toLowerCase().includes(q)) ||
+        (item.model_name && item.model_name.toLowerCase().includes(q)) ||
+        (item.anomaly_content && item.anomaly_content.toLowerCase().includes(q)) ||
+        (item.responsible_dept && item.responsible_dept.toLowerCase().includes(q));
+      return matchStatus && matchQuery;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding: 30px; color:#64748b;">沒有符合條件的案件</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(item => {
+      let badgeClass = 'badge-open';
+      if (item.is_closed === '已結案') badgeClass = 'badge-closed';
+      if (item.is_closed === '處理中') badgeClass = 'badge-processing';
+
+      return `
+        <tr>
+          <td><strong>${item.form_no || '-'}</strong></td>
+          <td>${item.complaint_date || '-'}</td>
+          <td><span class="badge ${badgeClass}">${item.is_closed || '未結案'}</span></td>
+          <td>${item.customer_name || '-'}</td>
+          <td>${item.model_name || '-'}</td>
+          <td>${item.complaint_type || '-'}</td>
+          <td style="max-width:240px; white-space:normal; line-height: 1.4;">${item.anomaly_content || '-'}</td>
+          <td>${item.inspection_qty ?? 0}</td>
+          <td>${item.defect_qty ?? 0}</td>
+          <td><strong>${item.defect_rate !== null ? item.defect_rate + ' %' : '-'}</strong></td>
+          <td>${item.responsible_dept || '-'}</td>
+          <td>${item.capa || '-'}</td>
+          <td style="max-width:160px; white-space:normal;">${item.progress_notes || '-'}</td>
+          <td>
+            <select class="status-select" onchange="updateStatus(${item.id}, this.value)">
+              <option value="未結案" ${item.is_closed === '未結案' ? 'selected' : ''}>未結案</option>
+              <option value="處理中" ${item.is_closed === '處理中' ? 'selected' : ''}>處理中</option>
+              <option value="已結案" ${item.is_closed === '已結案' ? 'selected' : ''}>已結案</option>
+            </select>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function updateStatus(id, newStatus) {
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_closed: newStatus })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || '更新失敗');
+
+      // 更新本機快取資料
+      const target = rawData.find(item => item.id === id);
+      if (target) target.is_closed = newStatus;
+      filterTable();
+    } catch (err) {
+      alert('更新失敗: ' + err.message);
+    }
+  }
+
+  loadComplaints();
+</script>
+
+</body>
+</html>
